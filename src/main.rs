@@ -5,6 +5,8 @@ use std::io::prelude::*;
 use std::char;
 //https://doc.rust-lang.org/rust-by-example/conversion/string.html
 
+//#[derive(Debug)] - allow for {:?} trait in a struct
+
 
 //from jeremey
 fn read_byte_by_byte(file_path: &str) -> Result<Vec<u8>, io::Error> {
@@ -73,9 +75,39 @@ const NULL_BYTE: u8 = 0x00;
 //const SPACE: u8 = 0x0a;
 const LSB_MASK: u8 = 0b00000001;
 
+/*fn read_past_header(file_path: &str, bytes: Vec<u8>) -> Result<u8, io::Error> {
+    let mut count: u8 = 0;
+    let mut new_lines: u8 = 0;
+    let mut bad: bool = false;
+    let mut byte = vec![0u8; 1];
+    let mut nums: u8 = 0; //number of numbers on second line
+    let mut f = fs::File::open(file_path)?;
+    if &bytes[0..2] != "P6".as_bytes() {
+        eprintln!("Error: not a P6 ppm file");
+        bad = true;//return Err("Not a p6 ppm file");
+    }
+    count += 2;
+    while(bad != true && nums != 2 && new_lines != 3) {
+        f.read(&mut byte);
+        if char::from(byte).is_digit(16) { nums += 1; }
+        else if byte == 0x0a {
+            //newline reached, should be
+            count += 1;
+            new_lines += 1;
+            continue;
+        }
+        else if byte == 0x20 {
+            count += 1;
+            continue;
+        }
+        count += 1;
+    }
+
+    return Ok(count);
+}*/
 
 /*const PPM_HEADER: [u8; 13] = [0x50, 0x36, SPACE, 0x37, 0x30, 0x20,
-                    0x34, 0x36, SPACE, 0x32, 0x35, 0x35, SPACE];*/ //this is deorecated. was using this in an assert before I realized that the second row values are the width/height
+                    0x34, 0x36, SPACE, 0x32, 0x35, 0x35, SPACE];*/ //this is deprecated. was using this in an assert before I realized that the second row values are the width/height
 fn main() {
     let args: Vec<String> = env::args().collect();
     match args.len() {
@@ -86,7 +118,40 @@ fn main() {
             //let header = &file_bytes[0..13]; //header is 13 bytes, start at 14th byte
             //println!("Header = {:?}", header);
             //assert_eq!(header, PPM_HEADER);
-            let data_bytes = &file_bytes[15..];
+            if &file_bytes[0..2] != "P6".as_bytes() {
+                eprintln!("Error: not a P6 ppm file.");
+            }
+            let mut header_count: usize = 2;
+            //let mut i = 2;
+            let mut space: u8 = 0;
+            let mut num_lines: u8 = 0;
+            loop {
+                let byte: u8 = file_bytes[header_count];
+                if space == 1 && num_lines == 3 {
+                    break;
+                }
+                else if space > 1 || num_lines > 3 {
+                    header_count = 0;
+                    break;
+                }
+                else {
+                    if byte == 0x0a {
+                        //newline
+                        num_lines += 1;
+                    }
+                    else if byte== 0x20 {
+                        //space
+                        space += 1;
+                    }
+                }
+                header_count += 1;
+            }
+            if header_count == 0 {
+                eprintln!("Error: there was a problem opening the PPM file for decoding.");
+            }
+            //println!("Size of header: {}", header_count);
+            //println!("14: {:x}, 15: {:x}, 16: {:x}", file_bytes[14], file_bytes[15], file_bytes[16]);
+            let data_bytes = &file_bytes[header_count..];
             //println!("Hex representation:\n{:x?}", data_bytes); //:x rex representation
             //println!("{:x?}", data_bytes[8..16].to_vec());
             let mut ascii_representation = String::new();
@@ -117,7 +182,39 @@ fn main() {
             //let header = &file_bytes[0..14]; //header is 13 bytes, start at 14th byte
             //println!("Header = {:?}", &header);
             //assert_eq!(header, PPM_HEADER);
-            let data_bytes = &mut file_bytes[15..];
+            if &file_bytes[0..2] != "P6".as_bytes() {
+                eprintln!("Error: not a P6 ppm file.");
+            }
+            let mut header_count: usize = 2;
+            //let mut i = 2;
+            let mut space: u8 = 0;
+            let mut num_lines: u8 = 0;
+            loop {
+                let byte: u8 = file_bytes[header_count];
+                if space == 1 && num_lines == 3 {
+                    break;
+                }
+                else if space > 1 || num_lines > 3 {
+                    header_count = 0;
+                    break;
+                }
+                else {
+                    if byte == 0x0a {
+                        //newline
+                        num_lines += 1;
+                    }
+                    else if byte== 0x20 {
+                        //space
+                        space += 1;
+                    }
+                }
+                header_count += 1;
+            }
+            if header_count == 0 {
+                eprintln!("Error: there was a problem opening the PPM file.");
+            }
+            //println!("Size of header: {}", header_count);
+            let data_bytes = &mut file_bytes[header_count..];
             //println!("first data byte: {}", &data_bytes[0]);
             //println!("{:x?}", &data_bytes[0..8]);
             let mut i = 0;
@@ -129,7 +226,7 @@ fn main() {
             //println!("{}", encoded.len());
             encoded.push(NULL_BYTE); //push 0x00 to ensure that decoding is possible in the future, otherwise there is no way to spefify end of the message
             //println!("{:x?}", encoded);
-            if encoded.len() / 8 > data_bytes.len() {
+            if encoded.len() * 8 > data_bytes.len() {
                 eprintln!("Error: message size too large");
             }
             //println!("{}", encoded.len());
@@ -156,11 +253,17 @@ fn main() {
                 }
                 i += 1;
             }
-            println!("{:x?}", &file_bytes[0..]);
+            //println!("{:x?}", &file_bytes[0..]);
+            let mut stdout = io::stdout();
+            //file_bytes.push(0xa); //add new line in order to pass diff check
+            //let file_b: Vec<u8> = file_bytes;
+            let _len: usize = file_bytes.len();
+            file_bytes.push(0x0a); //newline character
+            stdout.write(&file_bytes[0.._len + 1]).expect("Error: could not write PPM to stdout");
             let mut f = fs::File::create("output.ppm").expect("Error: could not generate output file");
             f.write(&file_bytes).expect("Error: could not write to output file");
             //f.write(b"\r\r\n").expect("Error: could not write end of file garbage.");
-            println!("Encoded \"{0}\" to {1}", message, file);
+            //println!("Encoded \"{0}\" to {1}", message, file);
         },
         _ => {
             eprintln!("Usage: cargo run <file_path> <message>");
