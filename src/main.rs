@@ -177,6 +177,8 @@ fn main() {
             //println!("lol not implemented yet");
             let file = &args[1].trim();
             let message = &args[2].trim();
+            let message = fs::read_to_string(message).expect("Error could not read message file.");
+            //println!("Message: {}", message);
             let mut file_bytes: Vec<u8> = read_byte_by_byte(file).expect("Error: could not read file bytes.");
             //let mut mut_file_bytes = &mut file_bytes[13..];
             //let header = &file_bytes[0..14]; //header is 13 bytes, start at 14th byte
@@ -213,6 +215,7 @@ fn main() {
             if header_count == 0 {
                 eprintln!("Error: there was a problem opening the PPM file.");
             }
+            //println!("First data byte: {:x}", file_bytes[header_count]);
             //println!("Size of header: {}", header_count);
             let data_bytes = &mut file_bytes[header_count..];
             //println!("first data byte: {}", &data_bytes[0]);
@@ -259,9 +262,10 @@ fn main() {
             //let file_b: Vec<u8> = file_bytes;
             let _len: usize = file_bytes.len();
             file_bytes.push(0x0a); //newline character
-            stdout.write(&file_bytes[0.._len + 1]).expect("Error: could not write PPM to stdout");
-            let mut f = fs::File::create("output.ppm").expect("Error: could not generate output file");
-            f.write(&file_bytes).expect("Error: could not write to output file");
+            stdout.write_all(&file_bytes[0.._len + 1]).expect("Error: could not write PPM to stdout");
+            /*let mut f = fs::File::create("output.ppm").expect("Error: could not generate output file");
+            f.write(&file_bytes).expect("Error: could not write to output file");*/
+
             //f.write(b"\r\r\n").expect("Error: could not write end of file garbage.");
             //println!("Encoded \"{0}\" to {1}", message, file);
         },
